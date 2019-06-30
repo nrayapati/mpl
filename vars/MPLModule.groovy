@@ -24,6 +24,7 @@
 import com.griddynamics.devops.mpl.Helper
 import com.griddynamics.devops.mpl.MPLManager
 import com.griddynamics.devops.mpl.MPLModuleException
+import com.griddynamics.devops.mpl.MPLConfig
 
 /**
  * Finding module implementation and executing it with specified configuration
@@ -33,12 +34,17 @@ import com.griddynamics.devops.mpl.MPLModuleException
  *   Loop protection: There is no way to run currently active module again
  *
  * @author Sergei Parshev <sparshev@griddynamics.com>
+ *
  * @param name  used to determine the module name, by default it's current stage name (ex. "Maven Build")
  * @param cfg   module configuration to override. Will update the common module configuration
  */
-def call(String name = env.STAGE_NAME, Map cfg = null) {
+def call(String name = env.STAGE_NAME, cfg = null) {
   if( cfg == null )
     cfg = MPLManager.instance.moduleConfig(name)
+  else if( cfg instanceof MPLConfig )
+    cfg = cfg.clone()
+  else
+    cfg = MPLConfig.create(cfg)
   
   // Trace of the running modules to find loops
   // Also to make ability to use lib module from overridden one
@@ -67,7 +73,7 @@ def call(String name = env.STAGE_NAME, Map cfg = null) {
 
   try {
     MPLManager.instance.pushActiveModule(module_path)
-    Helper.runModule(module_src, module_path, [CFG: Helper.flatten(cfg)])
+    Helper.runModule(module_src, module_path, [CFG: cfg])
   }
   catch( ex ) {
     def newex = new MPLModuleException("Found error during execution of the module '${module_path}':\n${ex}")
@@ -78,7 +84,7 @@ def call(String name = env.STAGE_NAME, Map cfg = null) {
     MPLManager.instance.modulePostStepsRun(module_path)
     def errors = MPLManager.instance.getPostStepsErrors(module_path)
     if( errors ) {
-      for( int e in errors )
+      for( def e in errors )
         println "Module '${name}' got error during execution of poststep from module '${e.module}': ${e.error}"
       def newex = new MPLModuleException("Found error during execution poststeps for the module '${module_path}'")
       newex.setStackTrace(Helper.getModuleStack(newex))

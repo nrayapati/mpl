@@ -101,16 +101,23 @@ abstract class Helper {
   }
 
   /**
-   * Converts map to a simply flatten map
+   * Deep copy of the Map or List
    *
-   * @param data       map to flatten
-   * @param separator  keys separator
-   * @return  map with flatten keys
+   * @param value      value to deep copy
+   *
+   * @return  value type without any relation to the original value
    */
-  static Map flatten(Map data, String separator = '.') {
-    data.collectEntries { k, v ->
-      v instanceof Map ? flatten(v, separator).collectEntries { q, r -> [(k + separator + q): r] } : [(k):v]
-    }
+  static cloneValue(value) {
+    def out
+
+    if( value in Map )
+      out = value.collectEntries { k, v -> [k, cloneValue(v)] }
+    else if( value in List )
+      out = value.collect { cloneValue(it) }
+    else
+      out = value
+
+    return out
   }
 
   /**
